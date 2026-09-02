@@ -8,6 +8,7 @@ from urllib.parse import urlsplit
 import streamlit as st
 
 from access_control import lock_current_session, require_access
+from branding import APP_NAME
 from config import SETTINGS
 
 from job_assistant.autofill import AutofillError, create_autofill_plan
@@ -1442,7 +1443,7 @@ def render_safety_tab() -> None:
     st.caption("外部项目的原始副本保存在 vendor/JobHuntBot，仅作为只读参考。")
 
 
-st.set_page_config(page_title="AI Job Agent", page_icon="✦", layout="wide")
+st.set_page_config(page_title=APP_NAME, page_icon="✦", layout="wide")
 require_access(SETTINGS.access_password, required=SETTINGS.cloud_deployment)
 
 # Imported after set_page_config so the home module cannot accidentally emit a
@@ -1452,7 +1453,7 @@ from ai_job_agent.ui import render_agent_home
 repository = ApplicationRepository(DATABASE)
 
 with st.sidebar:
-    st.subheader("AI Job Agent")
+    st.subheader(APP_NAME)
     st.caption("一次上传，安全准备多份官网申请")
     if SETTINGS.cloud_deployment:
         st.info("云端安全版：仅解析、匹配和投递清单；不控制本机浏览器。")
@@ -1466,7 +1467,7 @@ with st.sidebar:
         "- 真实网站逐岗位处理"
     )
     st.divider()
-    st.caption(f"AI Job Agent：{SETTINGS.database_path.name}")
+    st.caption(f"{APP_NAME}：{SETTINGS.database_path.name}")
     st.caption(f"高级工具：{DATABASE.name}")
     if SETTINGS.access_password and st.button("锁定当前页面", width="stretch"):
         lock_current_session()

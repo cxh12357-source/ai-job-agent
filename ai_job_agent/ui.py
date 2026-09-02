@@ -1,4 +1,4 @@
-"""Streamlit home for the end-to-end AI Job Agent MVP.
+"""Streamlit home for the end-to-end Charles-ai-job-agent MVP.
 
 The page deliberately keeps the happy path linear: resume -> jobs -> queue ->
 review -> explicit confirmation.  Existing advanced Greenhouse tools remain in
@@ -14,6 +14,7 @@ from typing import Any
 
 import streamlit as st
 
+from branding import APP_NAME
 from config import SETTINGS
 from job_assistant.autofill import AutofillError, create_autofill_plan
 from job_assistant.profile import ProfileError, load_profile as load_saved_applicant_profile
@@ -324,7 +325,7 @@ def _ensure_demo_resume() -> Path:
 
     document = Document()
     document.add_heading("Demo Candidate", level=1)
-    document.add_paragraph("Local AI Job Agent demo resume. Not a real candidate.")
+    document.add_paragraph(f"Local {APP_NAME} demo resume. Not a real candidate.")
     document.add_paragraph("Skills: Python, Data Analysis, LLM, AI Agent")
     document.save(target)
     return target
@@ -1406,7 +1407,7 @@ def render_agent_home() -> None:
         f"""
         <section class="aja-hero">
           <div class="aja-eyebrow">{mode_label}</div>
-          <h1>AI Job Agent</h1>
+          <h1>{APP_NAME}</h1>
           <p>上传一次简历，自动解析、发现岗位、计算匹配度并准备官网表单。
           <span class="aja-safe">未知信息不猜，验证码不绕过，最终提交由你确认。</span></p>
           <div class="aja-flow">上传简历　→　AI 解析　→　匹配岗位　→　准备投递　→　确认提交</div>

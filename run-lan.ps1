@@ -31,7 +31,7 @@ $lanAddress = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue
     } |
     Select-Object -First 1 -ExpandProperty IPAddress
 
-Write-Host "AI Job Agent 将仅供当前局域网访问。" -ForegroundColor Green
+Write-Host "Charles-ai-job-agent 将仅供当前局域网访问。" -ForegroundColor Green
 if ($lanAddress) {
     Write-Host "其他设备访问：http://$($lanAddress):8765" -ForegroundColor Cyan
 }

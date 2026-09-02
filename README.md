@@ -1,4 +1,4 @@
-# AI Job Agent
+# Charles-ai-job-agent
 
 一个以“**简历事实为唯一依据**”的安全求职助手。它把简历解析、岗位发现、混合匹配、申请队列、表单识别和投递记录放在同一个 Streamlit 应用中，并在登录、验证码、敏感问题或最终提交前把控制权交还给用户。
 
@@ -137,7 +137,7 @@ BOSS直聘和猎聘目前均限制第三方爬虫、拟人程序及规避技术�
 
 | 页面 | 建议文件位置 |
 |---|---|
-| AI Job Agent 首页与 Dashboard | `docs/screenshots/01-dashboard.png` |
+| Charles-ai-job-agent 首页与 Dashboard | `docs/screenshots/01-dashboard.png` |
 | 简历解析与 CandidateProfile | `docs/screenshots/02-profile.png` |
 | 岗位匹配列表 | `docs/screenshots/03-job-matches.png` |
 | 投递队列与 Review | `docs/screenshots/04-application-queue.png` |
@@ -176,7 +176,7 @@ cxh简历自动投递程序/
 ├─ run.ps1                        # Windows 一键安装并启动
 ├─ run-lan.ps1                    # 可信局域网访问（0.0.0.0:8765）
 ├─ ai_job_agent/
-│  ├─ ui.py                       # 简化版 AI Job Agent 首页
+│  ├─ ui.py                       # 简化版 Charles-ai-job-agent 首页
 │  ├─ models.py                   # Pydantic 领域模型
 │  ├─ database.py                 # SQLite、迁移、防重与队列状态机
 │  ├─ demo_data.py                # 本地 Demo 档案与岗位
@@ -206,7 +206,7 @@ cxh简历自动投递程序/
 ├─ examples/                      # 离线简历、条件和岗位数据
 ├─ tests/                         # pytest 测试
 ├─ data/                          # SQLite、缓存和本地资料
-├─ uploads/                       # AI Job Agent 上传文件
+├─ uploads/                       # Charles-ai-job-agent 上传文件
 ├─ logs/                          # 脱敏错误与截图
 ├─ output/                        # 导出的投递清单
 ├─ docs/                          # 设计与外部项目审查
@@ -564,7 +564,7 @@ Greenhouse 的 board token 通常是官方职位页 URL 中代表公司的最后
 
 ## Boss / 猎聘历史实验助手
 
-`boss_ai_assistant.py` 是保留的历史本地规则实验入口，不属于 AI Job Agent 主流程。当前只允许使用离线示例，不应再用于两家平台的实时页面；主流程请使用 `scraper.py` 提供的官网入口和用户资料本地导入。
+`boss_ai_assistant.py` 是保留的历史本地规则实验入口，不属于 Charles-ai-job-agent 主流程。当前只允许使用离线示例，不应再用于两家平台的实时页面；主流程请使用 `scraper.py` 提供的官网入口和用户资料本地导入。
 
 先使用离线示例验收：
 

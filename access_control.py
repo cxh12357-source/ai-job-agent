@@ -6,6 +6,8 @@ import hmac
 
 import streamlit as st
 
+from branding import APP_NAME
+
 
 SESSION_KEY = "app_access_granted"
 MIN_PASSWORD_LENGTH = 12
@@ -40,7 +42,7 @@ def require_access(expected_password: str, *, required: bool = False) -> None:
     if st.session_state.get(SESSION_KEY) is True:
         return
 
-    st.title("AI Job Agent")
+    st.title(APP_NAME)
     st.caption("此页面包含私人简历和投递记录")
     with st.form("app-access-form", clear_on_submit=True):
         candidate = st.text_input(
