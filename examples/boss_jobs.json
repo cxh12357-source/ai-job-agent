@@ -1,0 +1,20 @@
+{
+  "jobs": [
+    {
+      "title": "AI Agent 实习生",
+      "company": "示例科技公司",
+      "salary": "面议",
+      "hr_name": "示例招聘负责人",
+      "url": "https://www.zhipin.com/job_detail/EXAMPLE001.html",
+      "jd": "参与 AI Agent 和大模型应用开发，使用 Python 搭建工作流；了解 RAG、Prompt 或数据分析者优先。"
+    },
+    {
+      "title": "法务实习生",
+      "company": "示例服务公司",
+      "salary": "面议",
+      "hr_name": "示例招聘负责人",
+      "url": "https://www.zhipin.com/job_detail/EXAMPLE002.html",
+      "jd": "协助合同审核、诉讼材料整理与法律检索，要求通过法律职业资格考试。"
+    }
+  ]
+}

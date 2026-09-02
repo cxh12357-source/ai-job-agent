@@ -1,0 +1,9 @@
+{
+  "target_titles": ["AI", "Agent", "Python"],
+  "locations": ["上海", "Remote", "远程"],
+  "required_keywords": ["Python"],
+  "preferred_keywords": ["LLM", "RAG", "API", "SQL"],
+  "excluded_keywords": ["Senior", "Director", "10+ years"],
+  "minimum_score": 60,
+  "max_results": 20
+}

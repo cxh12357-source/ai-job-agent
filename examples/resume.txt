@@ -1,0 +1,14 @@
+张晓明
+求职方向：AI 应用开发 / Python 开发
+
+技能
+- Python、SQL、Git、Linux、Docker
+- 了解 LLM、RAG、LangChain、REST API
+- 使用 pandas 完成数据清洗与分析
+
+项目经历
+- 开发本地知识库问答原型，负责文档切分、检索和回答生成。
+- 编写 Python 数据处理脚本，并通过 API 连接外部服务。
+
+教育经历
+某大学，本科，计算机相关专业

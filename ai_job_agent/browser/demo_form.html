@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Job Agent Local Demo</title>
+  <style>
+    body { font: 16px/1.45 system-ui, sans-serif; max-width: 680px; margin: 2rem auto; padding: 0 1rem; }
+    label { display: block; margin: 1rem 0; }
+    input { display: block; box-sizing: border-box; width: 100%; padding: .55rem; }
+    button { padding: .65rem 1rem; }
+    #submission-status { margin-top: 1rem; font-weight: 600; }
+  </style>
+</head>
+<body data-demo-submitted="false">
+  <h1>Local application demo</h1>
+  <p>This page is local test data. It does not contact an employer.</p>
+  <form id="demo-application-form">
+    <label for="first-name">First name *
+      <input id="first-name" name="candidate_first_name" autocomplete="given-name" required>
+    </label>
+    <label for="last-name">Last name *
+      <input id="last-name" name="candidate_last_name" autocomplete="family-name" required>
+    </label>
+    <label for="email">Email address *
+      <input id="email" name="candidate_email" type="email" autocomplete="email" required>
+    </label>
+    <label for="phone">Phone number
+      <input id="phone" name="candidate_phone" type="tel" autocomplete="tel">
+    </label>
+    <label for="resume">Upload resume / CV *
+      <input id="resume" name="candidate_resume" type="file" accept=".pdf,.doc,.docx" required>
+    </label>
+    <button type="submit" data-demo-submit="true">Submit local demo</button>
+  </form>
+  <div id="submission-status" role="status" aria-live="polite">Not submitted</div>
+  <script>
+    document.getElementById('demo-application-form').addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (!event.currentTarget.checkValidity()) return;
+      document.body.dataset.demoSubmitted = 'true';
+      document.getElementById('submission-status').textContent = 'Demo submitted locally';
+    });
+  </script>
+</body>
+</html>
