@@ -39,12 +39,19 @@ from .services.job_searcher import (
     JobSearchError,
     search_jobs_detailed,
 )
+from .services.local_job_import import (
+    LocalJobImportError,
+    local_job_export_template,
+    parse_local_job_export,
+)
+from .services.local_scraper_bundle import build_local_scraper_bundle
 from .services.official_source_searcher import (
     OfficialCareerSearchError,
     search_official_career_urls,
 )
 from .services.profile_builder import build_candidate_profile
-from .services.resume_parser import ResumeParseError, parse_resume, save_upload
+from .services.resume_intake import process_resume_upload
+from .services.resume_parser import ResumeParseError, parse_resume
 from .sources.campus_catalog import (
     CAMPUS_CAREER_SITES,
     DEFAULT_CAMPUS_LABELS,
@@ -54,7 +61,8 @@ from .sources.campus_catalog import (
     resolve_campus_selection,
 )
 from .sources.catalog import CAREER_SITE_BY_LABEL
-from .ui_state import clear_job_search_state
+from .ui_state import clear_job_search_state, clear_resume_state
+from .ui_text import markdown_literal
 
 
 STATUS_LABELS = {
@@ -84,6 +92,9 @@ def _init_state() -> None:
         "aja_profile": None,
         "aja_resume_text": "",
         "aja_resume_path": "",
+        "aja_resume_filename": "",
+        "aja_resume_size": 0,
+        "aja_resume_upload_revision": 0,
         "aja_jobs": [],
         "aja_assessments": {},
         "aja_selected": set(),
@@ -99,6 +110,10 @@ def _init_state() -> None:
 
 def _clear_job_search_state() -> None:
     clear_job_search_state(st.session_state)
+
+
+def _forget_resume(*, reset_upload: bool = False) -> None:
+    clear_resume_state(st.session_state, reset_upload=reset_upload)
 
 
 def _inject_style() -> None:
@@ -413,14 +428,27 @@ def _dashboard(service: ApplicationService) -> None:
 
 
 def _resume_step() -> None:
-    st.markdown("### 1 · 上传一次简历")
+    st.markdown("### 1 · 上传个人 PDF 简历")
     left, right = st.columns([1.55, 1], gap="large")
     with left:
+        st.caption(
+            "支持 PDF / DOCX，单个文件不超过 10 MB。"
+            + ("文件会上传至 Streamlit 云端；本入口不将原文件写入云端磁盘。" if SETTINGS.cloud_deployment
+               else "原文件保存在本机 uploads/，用于后续经你确认的官网预填。")
+        )
         upload = st.file_uploader(
-            "PDF 或 DOCX，不超过 10 MB",
+            "上传个人 PDF 简历",
             type=["pdf", "docx"],
-            key="aja_resume_upload",
-            help="文件只保存在本机。扫描版 PDF 暂不包含 OCR。",
+            key=f"aja_resume_upload_{st.session_state.aja_resume_upload_revision}",
+            on_change=_forget_resume,
+            help="兼容 DOCX；扫描版 PDF 暂不包含 OCR。加密 PDF 请先在本机解密。",
+        )
+        use_ai = st.checkbox(
+            "允许将简历文字发送给 OpenAI，辅助结构化解析",
+            value=False,
+            disabled=not SETTINGS.openai_enabled,
+            key="aja_resume_ai_consent",
+            help="默认关闭；关闭时只在运行 App 的服务器上解析，不调用外部 AI。",
         )
         action_a, action_b = st.columns(2)
         parse_clicked = action_a.button(
@@ -437,35 +465,45 @@ def _resume_step() -> None:
             try:
                 content = upload.getvalue()
                 with st.spinner("正在提取事实并生成候选人档案…"):
-                    text = parse_resume(upload.name, content)
-                    path = save_upload(upload.name, content, uploads_dir=SETTINGS.uploads_dir)
-                    profile = build_candidate_profile(
-                        text,
-                        use_openai=SETTINGS.openai_enabled,
+                    result = process_resume_upload(
+                        upload.name,
+                        content,
+                        cloud_mode=SETTINGS.cloud_deployment,
+                        uploads_dir=SETTINGS.uploads_dir,
+                        use_openai=bool(use_ai and SETTINGS.openai_enabled),
                         model=SETTINGS.openai_model,
                     )
-                st.session_state.aja_resume_text = text
-                st.session_state.aja_resume_path = str(path)
-                st.session_state.aja_profile = profile
-                st.session_state.aja_jobs = []
-                st.session_state.aja_assessments = {}
-                st.session_state.aja_selected = set()
-                st.session_state.aja_search_report = {}
-                st.success("简历已解析。没有证据的信息保持为空。")
+                _forget_resume()
+                st.session_state.aja_resume_text = result.text
+                st.session_state.aja_resume_path = result.saved_path
+                st.session_state.aja_resume_filename = result.filename
+                st.session_state.aja_resume_size = result.size_bytes
+                st.session_state.aja_profile = result.profile
                 st.rerun()
-            except (ResumeParseError, ValueError) as exc:
+            except (ResumeParseError, ValueError, OSError) as exc:
+                _forget_resume()
                 st.error(str(exc))
 
         if demo_clicked:
+            _forget_resume(reset_upload=True)
             st.session_state.aja_profile = demo_profile()
             st.session_state.aja_resume_text = "Demo profile generated from local sample facts."
-            st.session_state.aja_resume_path = str(_ensure_demo_resume())
-            st.session_state.aja_jobs = []
-            st.session_state.aja_assessments = {}
-            st.session_state.aja_selected = set()
-            st.session_state.aja_search_report = {}
-            st.success("示例档案已就绪。")
+            st.session_state.aja_resume_path = "" if SETTINGS.cloud_deployment else str(_ensure_demo_resume())
+            st.session_state.aja_resume_filename = "demo_candidate_resume.docx"
             st.rerun()
+
+        current_profile = _profile_from_state()
+        if current_profile is not None:
+            filename = st.session_state.aja_resume_filename or "已载入的简历"
+            st.success(f"已解析：{filename} · {len(st.session_state.aja_resume_text):,} 字符")
+            with st.expander("查看 PDF / DOCX 提取文字"):
+                st.text(st.session_state.aja_resume_text)
+            st.button(
+                "清除此会话简历",
+                on_click=_forget_resume,
+                kwargs={"reset_upload": True},
+                help="清空本会话的档案、提取文字和匹配结果；不删除已有投递记录或本机历史文件。",
+            )
 
     with right:
         st.info(
@@ -475,6 +513,8 @@ def _resume_step() -> None:
         )
         mode = "Demo Mode · 不会向外部网站提交" if SETTINGS.demo_mode else "Real Mode · 提交前人工确认"
         st.caption(mode)
+        if SETTINGS.cloud_deployment:
+            st.caption("提取文字和候选人档案仅供当前会话使用；请自行保存原 PDF。云端不代你向招聘网站上传。")
 
 
 def _profile_step(profile: CandidateProfile) -> CandidateProfile:
@@ -558,11 +598,84 @@ def _profile_step(profile: CandidateProfile) -> CandidateProfile:
             }
         )
         st.session_state.aja_profile = updated
+        st.download_button(
+            "下载解析档案 JSON",
+            data=updated.model_dump_json(indent=2),
+            file_name="candidate_profile.json",
+            mime="application/json",
+            help="下载刚刚核对后的最新档案。包含个人信息，请只保存到可信设备；不要把它当作岗位文件上传。",
+        )
         with st.expander("查看解析详情与待确认项"):
             st.json(updated.model_dump(mode="json"), expanded=False)
             if updated.parse_warnings:
                 st.warning("；".join(updated.parse_warnings))
     return updated
+
+
+def _local_jobs_step(profile: CandidateProfile, service: ApplicationService) -> None:
+    st.info(
+        "本机运行 Playwright → 导出岗位 JSON → 在这里上传并匹配。"
+        "网页不会连接或远程控制你的电脑，也不接收浏览器 Cookie。"
+    )
+    with st.expander("下载本地抓取脚本与使用说明", expanded=True):
+        st.caption("仅供已获准自动读取的招聘页面使用。登录和验证码由你手动完成；网站禁止或限流时停止。")
+        try:
+            st.download_button(
+                "下载本地 Playwright 工具包",
+                data=build_local_scraper_bundle(),
+                file_name="charles-local-scraper.zip",
+                mime="application/zip",
+                key="aja_download_local_scraper",
+            )
+        except OSError:
+            st.warning("本地工具包暂不可用；可以从项目仓库获取 local_scraper.py。")
+        st.code(
+            "python -m pip install -r requirements-local-scraper.txt\n"
+            "python -m playwright install chromium\n"
+            "python local_scraper.py --demo --output output/local_jobs.json",
+            language="bash",
+        )
+        st.caption("先运行 Demo 验证浏览器。真实网站请按工具包说明修改配置并明确确认读取权限。")
+        st.download_button(
+            "下载岗位 JSON 格式样例（非真实岗位）",
+            data=local_job_export_template(),
+            file_name="local_jobs.example.json",
+            mime="application/json",
+        )
+    upload = st.file_uploader(
+        "上传本地抓取的岗位 JSON",
+        type=["json"],
+        key="aja_local_jobs_upload",
+        on_change=_clear_job_search_state,
+        help="只上传 local_scraper.py 导出的岗位文件，最多 5 MB / 100 个岗位。不要上传简历档案、Cookie 或密码文件。",
+    )
+    if st.button("导入岗位并匹配", type="primary", disabled=upload is None):
+        try:
+            with st.spinner("正在校验岗位文件并计算匹配度…"):
+                result = parse_local_job_export(upload.name, upload.getvalue())
+                assessments = {}
+                for job in result.jobs:
+                    assessment = match_job(profile, job, use_openai=False)
+                    assessments[_job_key(job)] = assessment
+                    service.register_job(job, assessment)
+            st.session_state.aja_jobs = result.jobs
+            st.session_state.aja_assessments = assessments
+            st.session_state.aja_selected = set()
+            companies = len({job.company for job in result.jobs})
+            st.session_state.aja_search_report = {
+                "mode": "local-playwright",
+                "boards_queried": companies,
+                "boards_succeeded": companies,
+                "total_jobs_seen": len(result.jobs),
+                "matched_jobs": len(result.jobs),
+                "warnings": result.warnings,
+                "exported_at": result.exported_at,
+            }
+            st.session_state.aja_notice = f"已导入 {len(result.jobs)} 个岗位并完成匹配；没有自动访问或提交任何招聘页面。"
+            st.rerun()
+        except (LocalJobImportError, ValueError) as exc:
+            _clear_job_search_state()
+            st.error(str(exc))
 
 
 def _search_step(profile: CandidateProfile, service: ApplicationService) -> None:
@@ -573,6 +686,7 @@ def _search_step(profile: CandidateProfile, service: ApplicationService) -> None
             "国内企业 · 校园招聘",
             "外企 / 国际企业 · 校招与初级岗位",
             "指定企业官网 / 其他 ATS",
+            "导入本地 Playwright 岗位",
             "本地 Demo（4 个样例）",
         ),
         horizontal=True,
@@ -580,6 +694,9 @@ def _search_step(profile: CandidateProfile, service: ApplicationService) -> None
         on_change=_clear_job_search_state,
         help="最低匹配度只负责筛选已找到的岗位，不会增加公司来源。",
     )
+    if source_label == "导入本地 Playwright 岗位":
+        _local_jobs_step(profile, service)
+        return
     use_demo_jobs = source_label.startswith("本地 Demo")
     use_domestic_sources = source_label.startswith("国内企业")
     use_international_sources = source_label.startswith("外企 / 国际企业")
@@ -950,6 +1067,8 @@ def _jobs_list(service: ApplicationService) -> None:
     jobs = [item if isinstance(item, JobPosting) else JobPosting.model_validate(item) for item in raw_jobs]
     report = dict(st.session_state.aja_search_report or {})
     if report:
+        if report.get("mode") == "local-playwright":
+            st.caption("来源：本机 Playwright 导出 · 导入匹配不请求招聘网站；请在投递前核对岗位是否仍然开放。")
         coverage = st.columns(5)
         coverage[0].metric("读取公司", report.get("boards_succeeded", 0))
         coverage[1].metric("官网岗位池", report.get("total_jobs_seen", len(jobs)))
@@ -1043,9 +1162,9 @@ def _jobs_list(service: ApplicationService) -> None:
                 selected.add(key)
             else:
                 selected.discard(key)
-            body.markdown(f"#### {job.company} · {job.title}")
+            body.markdown(f"#### {markdown_literal(job.company)} · {markdown_literal(job.title)}")
             body.caption(
-                " · ".join(
+                markdown_literal(" · ".join(
                     filter(
                         None,
                         [
@@ -1057,23 +1176,23 @@ def _jobs_list(service: ApplicationService) -> None:
                             job.source,
                         ],
                     )
-                )
+                ))
             )
             if assessment.advantages:
-                body.write("**优势**　" + "；".join(assessment.advantages[:2]))
+                body.write("**优势**　" + markdown_literal("；".join(assessment.advantages[:2])))
             if assessment.missing_skills:
                 body.caption("缺失技能：" + "、".join(assessment.missing_skills[:6]))
             score.markdown(f'<div class="aja-score">{assessment.match_score:.0f}%</div>', unsafe_allow_html=True)
             score.caption(assessment.match_level or "")
             with st.expander("查看 JD、评分依据与同类岗位"):
-                st.write(job.description or "暂无 JD 正文")
+                st.text(job.description or "暂无 JD 正文")
                 if job.requirements:
                     st.markdown("**要求**")
-                    st.write(job.requirements)
+                    st.text("\n".join(job.requirements) if isinstance(job.requirements, list) else job.requirements)
                 st.markdown("**评分依据**")
-                st.write(assessment.reason)
+                st.text(assessment.reason)
                 similar = _similar_jobs(job, visible)
-                st.caption("同类型岗位：" + ("；".join(similar) if similar else "暂无"))
+                st.caption("同类型岗位：" + markdown_literal("；".join(similar) if similar else "暂无"))
                 if job.job_url.startswith("https://"):
                     st.link_button("打开官网岗位页", job.job_url)
 
@@ -1265,7 +1384,7 @@ def _queue_section(service: ApplicationService) -> None:
         status = str(item["status"])
         with st.container(border=True):
             left, middle, right = st.columns([1.6, 1, 1])
-            left.write(f"**{item['company']} · {item['job_title']}**")
+            left.write(f"**{markdown_literal(item['company'])} · {markdown_literal(item['job_title'])}**")
             left.caption(f"匹配度 {item.get('match_score') or '—'} · {STATUS_LABELS.get(status, status)}")
             if SETTINGS.cloud_deployment:
                 middle.info("云端投递清单")

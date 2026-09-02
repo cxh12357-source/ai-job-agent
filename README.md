@@ -39,7 +39,9 @@ SQLite 保存投递记录并防止重复投递
 - 配置 OpenAI 后使用官方 Python SDK 和 Responses API 进行结构化提取
 - AI 提取结果会再次与简历原文核对；缺少原文证据的字段会被丢弃
 - GPA、身份信息、薪资、签证和工作许可等未知信息保持为空，不进行猜测
-- 上传文件使用清理后的文件名和内容哈希保存在本机 `uploads/`
+- 本机版上传文件使用清理后的文件名和内容哈希保存在 `uploads/`；云端首页上传入口只在当前会话保留解析结果，不将原简历写入云端磁盘
+- 首页提供“上传个人 PDF 简历”、提取文字预览、解析档案 JSON 下载和“清除此会话简历”；仍兼容 DOCX
+- OpenAI 简历解析改为显式勾选授权，默认只在 App 运行环境中提取事实
 
 ### 岗位发现与匹配
 
@@ -170,6 +172,8 @@ cxh简历自动投递程序/
 ├─ streamlit_app.py               # Community Cloud 安全入口
 ├─ access_control.py              # 局域网访问密码门禁
 ├─ scraper.py                     # BOSS/猎聘官方入口与用户提供 JD 的安全本地导入
+├─ local_scraper.py               # 独立本机 Playwright 读取器，不在云端执行
+├─ requirements-local-scraper.txt # 本机工具包的最小依赖
 ├─ config.py                      # .env 配置与本地目录
 ├─ requirements.txt
 ├─ .env.example
@@ -338,11 +342,48 @@ APP_ACCESS_PASSWORD = "replace-with-at-least-12-random-characters"
 | 公开 ATS / 静态官网读取 | 支持 | 支持 |
 | JavaScript 动态页面 Playwright 回退 | 禁用 | 支持 |
 | 可见浏览器自动预填 | 禁用 | 支持 |
+| 导入本机 Playwright 导出的岗位 JSON | 支持 | 支持 |
 | 登录 / CAPTCHA 人工接管 | 不适用 | 支持 |
 | SQLite / 上传文件持久保存 | 不保证 | 保存在本机 |
 
 官方参考：[部署应用](https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/deploy)、
 [Secrets 管理](https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/secrets-management)。
+
+### 上传个人 PDF 简历
+
+1. 登录网页后，在首页“1 · 上传个人 PDF 简历”中选择自己的 PDF（也兼容 DOCX），单个文件最多 10 MB。
+2. 点击“解析我的简历”。可以展开提取文字，核对姓名、邮箱、教育经历、技能及未知字段。
+3. 需要 OpenAI 辅助时，由本人先配置 `OPENAI_API_KEY`，再勾选界面中的文字发送授权；未勾选不会调用外部 AI。
+4. 可下载 `candidate_profile.json` 作为个人备份；该文件包含隐私，不要上传到 GitHub，也不要当作岗位文件导入。
+5. 点击“清除此会话简历”会清除当前会话的档案、文字和匹配结果，不删除此前投递记录或本机历史文件。
+
+云端上传意味着文件会发送至 Streamlit 服务器，而不是仅留在浏览器。首页新入口不把原文件写入服务器磁盘，
+解析结果只保留在当前会话；刷新断线或云实例重启可能丢失，请保存原 PDF。扫描图片型 PDF 暂不做 OCR；
+加密 PDF 需要先在本机解密。PDF 最多 100 页、提取文字最多 20 万字符，不会尝试猜测无法提取的内容。
+
+### 本地 Playwright 与网页配合
+
+网页不直接访问你的本机端口。采用明确的文件交接：**本机读取岗位 → 导出岗位 JSON → 网页上传 → 匹配 / 清单**。
+
+1. 先解析简历或使用示例档案，在“岗位来源”选择“导入本地 Playwright 岗位”。
+2. 下载“本地 Playwright 工具包”，解压后在该目录运行：
+
+```powershell
+python -m pip install -r requirements-local-scraper.txt
+python -m playwright install chromium
+python local_scraper.py --demo --output output/local_jobs.json
+```
+
+3. 回到网页上传 `output/local_jobs.json`，点击“导入岗位并匹配”。Demo 是固定虚构岗位，不能作为真实投递目标。
+4. 真实页面按 [本地工具说明](docs/LOCAL_SCRAPER.md) 配置来源、允许域名和页面字段。只有确认网站允许自动读取后，才使用 `--authorized` 运行。
+
+独立工具使用 Playwright 的 [persistent context](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch-persistent-context)，
+登录状态仅保留在本机专用目录；不会使用或导出日常浏览器 Cookie。验证码和登录要求由本人处理；
+robots 禁止、403/429 或其他网站限制会停止，不隐藏 webdriver、不提交表单、不发送简历。
+
+网页只接收版本化的岗位 JSON，最多 5 MB / 100 个岗位；会校验字段、过滤不安全 URL、清理 HTML、去重并报告跳过项。
+导入和匹配不访问招聘网站，不把文件中的任意代码、Cookie、档案或其他字段作为可执行内容。
+本地工具包只包含固定列出的脚本、配置和说明，不包含简历、密钥、数据库和登录状态。
 
 ## Demo Mode
 
@@ -356,7 +397,7 @@ Demo Mode 是首次验收的推荐方式：
 6. 检查申请队列，点击“确认模拟提交”。
 7. 查看 Dashboard 和本机 SQLite 中更新后的记录。
 
-这一流程会临时启动仅监听本机回环地址的 Demo 页面，并由真实 Playwright 填写；它不会启动外部招聘网站，也不会发送简历。若 Demo Mode 下仍配置了 `OPENAI_API_KEY`，上传真实简历时 AI 解析可能调用 OpenAI；需要完全本地体验时请保持 Key 为空。
+这一流程会临时启动仅监听本机回环地址的 Demo 页面，并由真实 Playwright 填写；它不会启动外部招聘网站，也不会发送简历。首页的 OpenAI 简历解析默认关闭，只有配置 Key 且勾选文字发送授权才会调用；其他高级工具的 AI 功能仍需分别核对其授权提示。
 
 ## Real Mode
 

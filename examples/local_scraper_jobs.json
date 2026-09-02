@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "kind": "charles-job-export",
+  "exported_at": "2026-09-03T00:00:00+00:00",
+  "source": "local-playwright",
+  "jobs": [
+    {
+      "title": "Demo Mechanical Engineer",
+      "company": "Demo Example Company",
+      "location": "Shanghai",
+      "description": "Use CAD and Python to develop mechanical products. This is a local test, not a real job.",
+      "job_url": "https://careers.example.com/jobs/demo-engineer",
+      "job_type": "INTERN",
+      "source": "local-playwright"
+    }
+  ],
+  "warnings": []
+}

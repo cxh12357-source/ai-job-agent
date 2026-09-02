@@ -5,6 +5,8 @@ from pathlib import Path
 
 
 MAX_RESUME_BYTES = 10 * 1024 * 1024
+MAX_PDF_PAGES = 100
+MAX_RESUME_TEXT_CHARS = 200_000
 SUPPORTED_SUFFIXES = frozenset({".pdf", ".docx"})
 
 
@@ -21,13 +23,29 @@ def _clean(text: str) -> str:
 
 
 def _pdf_text(content: bytes) -> str:
+    if not content.lstrip().startswith(b"%PDF-"):
+        raise ResumeParseError("文件内容不是有效的 PDF，请勿只修改扩展名")
     try:
         import pymupdf
     except ImportError as exc:
         raise ResumeParseError("读取 PDF 需要安装 PyMuPDF") from exc
     try:
         with pymupdf.open(stream=content, filetype="pdf") as document:
-            return "\n".join(page.get_text("text") for page in document)
+            if document.needs_pass:
+                raise ResumeParseError("PDF 已加密，请先在本机解密后再上传")
+            if len(document) > MAX_PDF_PAGES:
+                raise ResumeParseError(f"简历 PDF 不能超过 {MAX_PDF_PAGES} 页")
+            chunks: list[str] = []
+            total = 0
+            for page in document:
+                chunk = page.get_text("text")
+                total += len(chunk)
+                if total > MAX_RESUME_TEXT_CHARS:
+                    raise ResumeParseError("简历文字过长，请只上传个人简历")
+                chunks.append(chunk)
+            return "\n".join(chunks)
+    except ResumeParseError:
+        raise
     except Exception as exc:
         raise ResumeParseError("PDF 读取失败") from exc
 

@@ -1,0 +1,17 @@
+{
+  "start_urls": ["https://careers.example.com/jobs"],
+  "allowed_hosts": ["careers.example.com"],
+  "company": null,
+  "max_pages": 5,
+  "max_jobs": 5,
+  "delay_seconds": 3,
+  "timeout_ms": 20000,
+  "selectors": {
+    "title": "h1",
+    "company": ".company-name",
+    "location": ".job-location",
+    "description": ".job-description",
+    "requirements": ".job-requirements",
+    "job_links": "a.job-link"
+  }
+}
