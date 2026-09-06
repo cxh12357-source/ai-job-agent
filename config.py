@@ -43,7 +43,6 @@ class AppSettings:
     database_path: Path
     uploads_dir: Path
     logs_dir: Path
-    access_password: str
 
     @classmethod
     def from_environment(cls) -> "AppSettings":
@@ -58,7 +57,6 @@ class AppSettings:
             database_path=_project_path("AI_JOB_AGENT_DB", "data/ai_job_agent.db"),
             uploads_dir=_project_path("AI_JOB_AGENT_UPLOADS", "uploads"),
             logs_dir=_project_path("AI_JOB_AGENT_LOGS", "logs"),
-            access_password=os.getenv("APP_ACCESS_PASSWORD", "").strip(),
         )
 
     def ensure_local_directories(self) -> None:

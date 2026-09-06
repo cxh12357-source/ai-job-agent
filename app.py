@@ -7,7 +7,6 @@ from urllib.parse import urlsplit
 
 import streamlit as st
 
-from access_control import lock_current_session, require_access
 from branding import APP_NAME
 from config import SETTINGS
 
@@ -1444,7 +1443,6 @@ def render_safety_tab() -> None:
 
 
 st.set_page_config(page_title=APP_NAME, page_icon="✦", layout="wide")
-require_access(SETTINGS.access_password, required=SETTINGS.cloud_deployment)
 
 # Imported after set_page_config so the home module cannot accidentally emit a
 # Streamlit command before the page configuration is established.
@@ -1469,10 +1467,6 @@ with st.sidebar:
     st.divider()
     st.caption(f"{APP_NAME}：{SETTINGS.database_path.name}")
     st.caption(f"高级工具：{DATABASE.name}")
-    if SETTINGS.access_password and st.button("锁定当前页面", width="stretch"):
-        lock_current_session()
-        st.rerun()
-
 agent_tab, profile_tab, match_tab, tracking_tab, follow_up_tab, safety_tab = st.tabs(
     ["AI 求职 Agent", "申请资料", "真实岗位工具", "投递记录", "面试与跟进", "安全与隐私"]
 )

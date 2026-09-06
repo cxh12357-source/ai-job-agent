@@ -170,7 +170,6 @@ Streamlit UI (app.py + ai_job_agent/ui.py)
 cxh简历自动投递程序/
 ├─ app.py                         # Streamlit 统一入口
 ├─ streamlit_app.py               # Community Cloud 安全入口
-├─ access_control.py              # 局域网访问密码门禁
 ├─ scraper.py                     # BOSS/猎聘官方入口与用户提供 JD 的安全本地导入
 ├─ local_scraper.py               # 独立本机 Playwright 读取器，不在云端执行
 ├─ requirements-local-scraper.txt # 本机工具包的最小依赖
@@ -278,7 +277,6 @@ cp .env.example .env
 | `AI_JOB_AGENT_DB` | `data/ai_job_agent.db` | 新版 jobs / applications / queue 数据库 |
 | `AI_JOB_AGENT_UPLOADS` | `uploads` | 简历上传目录 |
 | `AI_JOB_AGENT_LOGS` | `logs` | 脱敏日志和失败截图目录 |
-| `APP_ACCESS_PASSWORD` | 空 | 局域网访问密码；使用 `run-lan.ps1` 前必须设置至少 12 个字符 |
 
 示例：
 
@@ -291,18 +289,16 @@ OPENAI_MODEL=gpt-5-mini
 AI_JOB_AGENT_DB=data/ai_job_agent.db
 AI_JOB_AGENT_UPLOADS=uploads
 AI_JOB_AGENT_LOGS=logs
-APP_ACCESS_PASSWORD=
 ```
 
 ## 从手机或另一台电脑访问
 
-应用包含真实简历、联系方式和投递记录，因此默认的 `run.ps1` 只监听本机
-`127.0.0.1:8765`。只在可信家庭或办公局域网中使用以下方式：
+应用可能包含真实简历、联系方式和投递记录，因此默认的 `run.ps1` 只监听本机
+`127.0.0.1:8765`。`run-lan.ps1` 不提供应用内认证，只能在可信家庭或办公局域网中使用：
 
-1. 在 `.env` 设置至少 12 个字符的随机 `APP_ACCESS_PASSWORD`。
-2. 运行 `run-lan.ps1`。
-3. 将脚本显示的地址（例如 `http://192.168.10.143:8765`）输入同一 Wi-Fi 下的手机或电脑。
-4. 输入访问密码。每个浏览器会话可随时从侧边栏“锁定当前页面”。
+1. 运行 `run-lan.ps1`。
+2. 将脚本显示的地址（例如 `http://192.168.10.143:8765`）输入同一 Wi-Fi 下的手机或电脑。
+3. 同一网络中的任何人都可直接进入应用，因此不要上传不愿与该网络用户共享的数据。
 
 局域网模式保留 Streamlit 的 CORS 与 XSRF 防护，但仍是普通 HTTP。不要在公共 Wi-Fi 使用，
 也不要在路由器中把 8765 端口映射到公网。如果需要从外网访问，应使用带 HTTPS 和身份策略的
@@ -323,16 +319,11 @@ APP_ACCESS_PASSWORD=
 1. 将此目录的已跟踪文件推送到一个私有 GitHub 仓库。
 2. 登录 [Streamlit Community Cloud](https://share.streamlit.io/)，选择该仓库和 `main` 分支。
 3. Main file path 填写 `streamlit_app.py`，Python 选择 `3.12`。
-4. 在 **Advanced settings → Secrets** 粘贴以下内容，并换成新的随机密码：
+4. 应用内不再配置访问密码；站点公开范围由 Streamlit Community Cloud 的 Sharing 设置控制。
 
-```toml
-APP_ACCESS_PASSWORD = "replace-with-at-least-12-random-characters"
-```
-
-如需 AI 解析，可再由本人添加 `OPENAI_API_KEY = "..."`；不要把 Key 写进仓库。部署后得到
+如需 AI 解析，可在 Streamlit 的 Secrets 管理页添加 `OPENAI_API_KEY`，但不要把实际值写进仓库、日志或文档。部署后得到
 `https://你的应用名.streamlit.app` 地址。云端运行时生成的 SQLite、简历和清单不保证在
-实例休眠或重建后保留，因此它目前只适合作为单用户、受密码保护的临时匹配界面，不应
-作为长期投递记录库。
+实例休眠或重建后保留。公开站点没有应用内身份隔离，不应存放长期投递记录或其他敏感数据。
 
 云端版与本机版的边界：
 
@@ -351,7 +342,7 @@ APP_ACCESS_PASSWORD = "replace-with-at-least-12-random-characters"
 
 ### 上传个人 PDF 简历
 
-1. 登录网页后，在首页“1 · 上传个人 PDF 简历”中选择自己的 PDF（也兼容 DOCX），单个文件最多 10 MB。
+1. 打开网页后，在首页“1 · 上传个人 PDF 简历”中选择自己的 PDF（也兼容 DOCX），单个文件最多 10 MB。
 2. 点击“解析我的简历”。可以展开提取文字，核对姓名、邮箱、教育经历、技能及未知字段。
 3. 需要 OpenAI 辅助时，由本人先配置 `OPENAI_API_KEY`，再勾选界面中的文字发送授权；未勾选不会调用外部 AI。
 4. 可下载 `candidate_profile.json` 作为个人备份；该文件包含隐私，不要上传到 GitHub，也不要当作岗位文件导入。
